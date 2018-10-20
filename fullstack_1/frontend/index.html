@@ -11,8 +11,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.0/redux.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-redux/5.0.7/react-redux.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/4.1.0/echarts-en.common.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.6.2/prop-types.js"></script>
 
   <script type="text/babel">
+
     const OBJECTIVES = [
       { "id": 1, "title": "First objective", "start": 0, "target": 50, "current": 20, "start_date": "2018-01-05", "end_date": "2018-03-05" },
       { "id": 2, "title": "Second objective", "start": 10, "target": 42, "current": 20, "start_date": "2018-01-25", "end_date": "2018-03-30", "parent_id": 1 },
@@ -24,10 +27,93 @@
 
 
     // PUT YOUR CODE HERE AND MODIFY App
+    
+    const Header = () => {
+      const reachedObjectives = OBJECTIVES.filter(objective => objective.current > objective.target);
+      return <h1>{`${reachedObjectives.length} objectives have their current value over their target`}</h1>
+    };
 
-    const App = () =>
-      <div>CHALLENGE JAVELO</div>
+    const Objective = (props) => {
+      const objectiveInfo = props.info;
+      return (
+        <li>
+          {objectiveInfo.title}<br />
+          <div 
+            style={{ height: 300, width: 500 }} 
+            key={objectiveInfo.id.toString()} 
+            id={objectiveInfo.id}
+          />
+        </li>
+      );
+    }
 
+    Objective.propTypes = {
+      info: PropTypes.shape({
+        id: PropTypes.number.isRequired,
+        title: PropTypes.string.isRequired,
+      }).isRequired,
+    };
+
+    const createObjectiveProgressionCurve = (objective) => {
+      const {
+        id,
+        title,
+        start_date,
+        start,
+        end_date,
+        target,
+        current,
+        } = objective;
+      
+      const curve= echarts.init(document.getElementById(id));
+      const options = {
+        title: {
+          text: "Objective Progression",
+          textStyle: {
+            fontSize: 12,
+            align: "center",
+            fontFamily: "Helvetica Neue",
+          },
+          top: 10,
+        },
+        legend: {
+          show: false,
+        },
+        xAxis: {
+          data: [start_date, TODAY, end_date],
+        },
+        yAxis: {},
+        series: {
+          name: title,
+          type: "line",
+          label: {
+            show: true,
+          },
+          data: [start, current, target],
+          legendHoverLink: false,
+        },
+      }
+      curve.setOption(options);
+    } 
+
+    class App extends React.Component {
+
+      componentDidMount() {
+        OBJECTIVES.forEach( objective => createObjectiveProgressionCurve(objective));
+      }
+
+      render() {
+        return (
+          <div style={{ fontFamily: "Helvetica Neue" }}>
+            <div>CHALLENGE JAVELO</div>
+            <Header/>
+            <ul>
+              {OBJECTIVES.map( objective => <Objective key={objective.id.toString()} info={objective} />)}
+            </ul>
+          </div>
+        );
+      }
+    };
 
     ReactDOM.render(
       <App/>,
