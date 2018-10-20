@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 </head>
-<body>
+<body style="margin: 0;">
   <div id="root"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/16.4.1/umd/react.development.js"></script>
@@ -27,96 +27,186 @@
 
 
     // PUT YOUR CODE HERE AND MODIFY App
-    
-    const Header = () => {
-      const reachedObjectives = OBJECTIVES.filter(objective => objective.current > objective.target);
-      return <h1>{`${reachedObjectives.length} objectives have their current value over their target`}</h1>
+
+    const Header = (props) => {
+      const { reachedObjectives } = props;
+
+      return (
+        <div style={{
+          width: "100vw",
+          backgroundColor: "#e74c3c",
+          color: "#FFFFFF",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}>
+          <h1>CHALLENGE JAVELO</h1>
+          <h2>{`${reachedObjectives.length} objectives have their current value over their target`}</h2>
+        </div>
+      )
     };
 
-    const Objective = (props) => {
-      const objectiveInfo = props.info;
-      return (
-        <li>
-          {objectiveInfo.title}<br />
-          <div 
-            style={{ height: 300, width: 500 }} 
-            key={objectiveInfo.id.toString()} 
-            id={objectiveInfo.id}
-          />
-        </li>
-      );
+    Header.propTypes = {
+      reachedObjectives: PropTypes.array.isRequired,
+    };
+
+    class Objective extends React.Component {
+
+      constructor(props) {
+        super(props);
+        this.createObjectiveProgressionCurve = this.createObjectiveProgressionCurve.bind(this);
+        this.displayChildren= this.displayChildren.bind(this);
+      }
+
+      componentDidMount() {
+        this.createObjectiveProgressionCurve();
+      }
+
+      createObjectiveProgressionCurve() {
+        const {
+          id,
+          title,
+          start_date,
+          start,
+          end_date,
+          target,
+          current,
+          } = this.props.objectiveInfo;
+        
+        const curve= echarts.init(document.getElementById(id));
+        const options = {
+          title: {
+            text: "Objective Progression",
+            textStyle: {
+              fontSize: 12,
+              align: "center",
+              fontFamily: "Helvetica Neue",
+            },
+            top: 10,
+          },
+          legend: {
+            show: false,
+          },
+          xAxis: {
+            data: [start_date, TODAY, end_date],
+          },
+          yAxis: {},
+          series: {
+            name: title,
+            type: "line",
+            label: {
+              show: true,
+            },
+            lineStyle: {
+              color: "#e74c3c",
+            },
+            data: [start, current, target],
+            legendHoverLink: false,
+          },
+        }
+        curve.setOption(options);
+      }
+
+      displayChildren() {
+        const { objectiveInfo, objectives } = this.props;
+        const children = objectives.filter(item => item.parent_id && item.parent_id === objectiveInfo.id);
+
+        return children.length !== 0 && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent:"flex-start" }}>
+            {children.map( child => <Objective objectives={objectives} key={child.id.toString()} objectiveInfo={child} />)}
+          </div>
+        )
+      }
+
+      render() {
+        const { objectiveInfo } = this.props;
+
+        return objectiveInfo && (
+          <div style={{
+            position:"relative",
+            margin: "20px 0px 20px 100px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent:"center",
+            borderLeft: "1px dotted grey",
+            paddingLeft: "10px",
+          }}>
+            <p style={{ color: "#e74c3c", fontWeight: "bold" }}>
+              {objectiveInfo.title}
+            </p>
+            <div 
+              style={{ height: 200, width: 300 }} 
+              id={objectiveInfo.id}
+            />
+            {this.displayChildren()}
+          </div>
+        );
+      }
     }
 
     Objective.propTypes = {
-      info: PropTypes.shape({
+      objectiveInfo: PropTypes.shape({
         id: PropTypes.number.isRequired,
         title: PropTypes.string.isRequired,
       }).isRequired,
     };
 
-    const createObjectiveProgressionCurve = (objective) => {
-      const {
-        id,
-        title,
-        start_date,
-        start,
-        end_date,
-        target,
-        current,
-        } = objective;
-      
-      const curve= echarts.init(document.getElementById(id));
-      const options = {
-        title: {
-          text: "Objective Progression",
-          textStyle: {
-            fontSize: 12,
-            align: "center",
-            fontFamily: "Helvetica Neue",
-          },
-          top: 10,
-        },
-        legend: {
-          show: false,
-        },
-        xAxis: {
-          data: [start_date, TODAY, end_date],
-        },
-        yAxis: {},
-        series: {
-          name: title,
-          type: "line",
-          label: {
-            show: true,
-          },
-          data: [start, current, target],
-          legendHoverLink: false,
-        },
-      }
-      curve.setOption(options);
-    } 
-
     class App extends React.Component {
 
+      constructor(props) {
+        super(props);
+        this.objectives = [];
+        this.reachedObjectives = [];
+        this.displayObjectives = this.displayObjectives.bind(this);
+      }
+
       componentDidMount() {
-        OBJECTIVES.forEach( objective => createObjectiveProgressionCurve(objective));
+        this.objectives = OBJECTIVES;
+        this.reachedObjectives = this.getReachedObjectives();
+        this.forceUpdate();
+      }
+
+      getReachedObjectives() {
+        return this.objectives.filter(objective => objective.current > objective.target);
+      }
+
+      displayObjectives () {
+        const topLevelObjective = this.objectives.map(objective => {
+          if(!objective.parent_id) {
+            return (
+              <Objective 
+                objectives={this.objectives} 
+                key={objective.id.toString()} 
+                objectiveInfo={objective} 
+              />
+            );
+          }
+        });
+        return topLevelObjective;
       }
 
       render() {
         return (
-          <div style={{ fontFamily: "Helvetica Neue" }}>
-            <div>CHALLENGE JAVELO</div>
-            <Header/>
-            <ul>
-              {OBJECTIVES.map( objective => <Objective key={objective.id.toString()} info={objective} />)}
-            </ul>
+          <div style={{
+            fontFamily: "Helvetica Neue",
+            display: "flex",
+            flexDirection:"column",
+            justifyContent:"flex-start",
+            alignItems:"flex-start",
+            }}>
+            <Header reachedObjectives={this.reachedObjectives}/>
+              {this.objectives.length !== 0 && this.displayObjectives()}
           </div>
         );
       }
     };
 
+
+
     ReactDOM.render(
-      <App/>,
+      <App />,
       document.getElementById('root')
     );
   </script>
