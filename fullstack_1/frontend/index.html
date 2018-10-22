@@ -55,8 +55,10 @@
 
       constructor(props) {
         super(props);
+        this.increment = 0;
         this.createObjectiveProgressionCurve = this.createObjectiveProgressionCurve.bind(this);
         this.displayChildren= this.displayChildren.bind(this);
+        this.getCurveOptions = this.getCurveOptions.bind(this);
       }
 
       componentDidMount() {
@@ -64,6 +66,12 @@
       }
 
       createObjectiveProgressionCurve() {
+        const { id } = this.props.objectiveInfo;
+        this.curve = echarts.init(document.getElementById(id));
+        this.curve.setOption(this.getCurveOptions());
+      }
+
+      getCurveOptions() {
         const {
           id,
           title,
@@ -73,8 +81,7 @@
           target,
           current,
           } = this.props.objectiveInfo;
-        
-        const curve= echarts.init(document.getElementById(id));
+
         const options = {
           title: {
             text: "Objective Progression",
@@ -105,22 +112,29 @@
             legendHoverLink: false,
           },
         }
-        curve.setOption(options);
+        return options;
       }
 
       displayChildren() {
-        const { objectiveInfo, objectives } = this.props;
+        const { objectiveInfo, objectives, incrementObjectiveValue } = this.props;
         const children = objectives.filter(item => item.parent_id && item.parent_id === objectiveInfo.id);
-
+        this.curve && this.curve.setOption(this.getCurveOptions());
         return children.length !== 0 && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent:"flex-start" }}>
-            {children.map( child => <Objective objectives={objectives} key={child.id.toString()} objectiveInfo={child} />)}
+            {children.map( child => (
+              <Objective 
+              objectives={objectives} 
+              key={child.id.toString()} 
+              objectiveInfo={child}
+              incrementObjectiveValue={incrementObjectiveValue}
+              />)
+              )}
           </div>
         )
       }
 
       render() {
-        const { objectiveInfo } = this.props;
+        const { objectiveInfo, incrementObjectiveValue } = this.props;
 
         return objectiveInfo && (
           <div style={{
@@ -136,6 +150,24 @@
             <p style={{ color: "#e74c3c", fontWeight: "bold" }}>
               {objectiveInfo.title}
             </p>
+            <div style={{ display:"flex", flexDirection: "row", justifyContent: "flex-start", alignItems: "center" }}>
+            <button 
+            onClick={() => {
+              incrementObjectiveValue(objectiveInfo.id);
+              this.increment++;
+              }}
+            style={{ 
+              backgroundColor: "#e74c3c",
+              padding: "6px 12px",
+              border: "none",
+              borderRadius: "3px",
+              color: "#FFFFFF",
+              }}
+            >
+              Increment current value.
+            </button>
+            <p style={{ paddingLeft: "5px" }}>{this.increment}</p>
+            </div>
             <div 
               style={{ height: 200, width: 300 }} 
               id={objectiveInfo.id}
@@ -151,40 +183,48 @@
         id: PropTypes.number.isRequired,
         title: PropTypes.string.isRequired,
       }).isRequired,
+      objectives: PropTypes.array.isRequired,
+      incrementObjectiveValue: PropTypes.func.isRequired,
     };
 
     class App extends React.Component {
 
       constructor(props) {
         super(props);
-        this.objectives = [];
-        this.reachedObjectives = [];
+        this.state = { objectives : [] };
         this.displayObjectives = this.displayObjectives.bind(this);
+        this.incrementObjectiveValue = this.incrementObjectiveValue.bind(this);
       }
 
       componentDidMount() {
-        this.objectives = OBJECTIVES;
-        this.reachedObjectives = this.getReachedObjectives();
-        this.forceUpdate();
+        this.setState({ objectives: OBJECTIVES });
       }
 
       getReachedObjectives() {
-        return this.objectives.filter(objective => objective.current > objective.target);
+        return this.state.objectives.filter(objective => objective.current > objective.target);
       }
 
       displayObjectives () {
-        const topLevelObjective = this.objectives.map(objective => {
+        const topLevelObjective = this.state.objectives.map(objective => {
           if(!objective.parent_id) {
             return (
               <Objective 
-                objectives={this.objectives} 
+                objectives={this.state.objectives} 
                 key={objective.id.toString()} 
                 objectiveInfo={objective} 
+                incrementObjectiveValue={this.incrementObjectiveValue}
               />
             );
           }
         });
         return topLevelObjective;
+      }
+
+      incrementObjectiveValue (objectiveId) {
+        const objectives = [...this.state.objectives];
+        objectives[objectiveId - 1].current += 1;
+        console.log(objectives[objectiveId - 1].current);
+        this.setState({ objectives: [...objectives] });
       }
 
       render() {
@@ -196,8 +236,8 @@
             justifyContent:"flex-start",
             alignItems:"flex-start",
             }}>
-            <Header reachedObjectives={this.reachedObjectives}/>
-              {this.objectives.length !== 0 && this.displayObjectives()}
+            <Header reachedObjectives={this.getReachedObjectives()}/>
+              {this.state.objectives.length !== 0 && this.displayObjectives()}
           </div>
         );
       }
